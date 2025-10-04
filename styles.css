@@ -1,0 +1,69 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    margin: 0;
+    padding: 0;
+}
+.container {
+    max-width: 900px;
+    margin: 40px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+h1 {
+    text-align: center;
+}
+input[type="file"] {
+    display: block;
+    margin: 20px auto;
+}
+.button-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+}
+#mergeButton {
+    background-color: #28a745;
+    color: white;
+}
+#mergeButton:hover {
+    background-color: #218838;
+}
+#downloadButton {
+    background-color: #007bff;
+    color: white;
+}
+#downloadButton:hover {
+    background-color: #0056b3;
+}
+#output {
+    background: #f9f9f9;
+    border-radius: 8px;
+    padding: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+}
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+#progress-container {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 20px;
+}
+progress {
+    width: 80%;
+    height: 20px;
+}
