@@ -1,32 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Merge Large JSON Files with Web Worker & Progress</title>
-<link rel="stylesheet" href="styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merge Multiple JSON Files</title>
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Highlight.js theme (dark) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <!-- Highlight.js script -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
 <body>
-<div class="container">
-    <h1>Merge Multiple JSON Files (Web Worker + Progress)</h1>
-    <input type="file" id="fileInput" multiple accept=".json" />
-    <div class="button-container">
-        <button id="mergeButton">Merge Files</button>
-        <button id="downloadButton" style="display: none;">Download Merged JSON</button>
+    <div class="container">
+        <h1>Merge Multiple JSON Files</h1>
+        <input type="file" id="fileInput" multiple accept=".json">
+        <div class="button-container">
+            <button id="mergeButton">Merge Files</button>
+            <button id="downloadButton">Download Merged JSON</button>
+        </div>
+        
+        <div id="output">
+            <h2>Merged JSON:</h2>
+            <pre><code id="mergedResult" class="language-json"></code></pre>
+        </div>
     </div>
 
-    <div id="progress-container" style="display:none;">
-        <label for="progressBar">Parsing Progress:</label>
-        <progress id="progressBar" value="0" max="100"></progress>
-        <span id="progressPercent">0%</span>
-    </div>
-
-    <div id="output">
-        <h2>Merged JSON:</h2>
-        <pre id="mergedResult"></pre>
-    </div>
-</div>
-
-<script src="app.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
