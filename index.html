@@ -32,7 +32,6 @@
             display: inline-block;
         }
         #mergeButton.success { background: #10b981; }
-        #downloadButton.show { display: flex; }
         pre::-webkit-scrollbar { width: 8px; }
         pre::-webkit-scrollbar-thumb { background: #475569; border-radius: 5px; }
         .hljs-attr { color: #22c55e !important; }
@@ -58,10 +57,18 @@
             <p class="text-slate-400 mt-2">Select JSON files to merge them into a single output</p>
         </div>
 
-        <div class="space-y-6">
+            <div class="space-y-6">
             <div class="flex justify-center">
                 <input type="file" id="fileInput" multiple accept=".json"
                        class="w-full max-w-md px-4 py-3 border-2 border-dashed border-slate-600 rounded-lg bg-slate-950/50 text-slate-400 cursor-pointer hover:border-indigo-500 transition-colors file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-500 file:text-white file:cursor-pointer hover:file:bg-indigo-400" />
+            </div>
+
+            <div id="progress-container" class="hidden w-full max-w-md mx-auto">
+                <div class="flex justify-between text-sm text-slate-400 mb-1">
+                    <span>Merging...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <progress id="progressBar" max="100" value="0" class="w-full h-2 rounded-full [&::-webkit-progress-bar]:bg-slate-700 [&::-webkit-progress-value]:bg-indigo-500 [&::-webkit-progress-value]:rounded-full"></progress>
             </div>
 
             <div class="flex justify-center gap-4">

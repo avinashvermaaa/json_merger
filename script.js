@@ -1,97 +1,185 @@
-const mergeButton = document.getElementById("mergeButton");
-const downloadButton = document.getElementById("downloadButton");
-const fileInput = document.getElementById("fileInput");
+const fileInput = document.getElementById('fileInput');
+const mergeButton = document.getElementById('mergeButton');
+const downloadButton = document.getElementById('downloadButton');
+const mergedResult = document.getElementById('mergedResult');
+const progressBar = document.getElementById('progressBar');
+const progressPercent = document.getElementById('progressPercent');
+const progressContainer = document.getElementById('progress-container');
 
-let mergedData = null;
-let worker = null;
+let mergedDataString = "";
+let hasFullData = false;
 
-function initWorker() {
+function setUIState(merging) {
+    fileInput.disabled = merging;
+    mergeButton.disabled = merging;
+    downloadButton.disabled = merging;
+}
+
+let pendingPercent = 0;
+let progressUpdateScheduled = false;
+function updateProgress(percent) {
+    pendingPercent = percent;
+    if (progressUpdateScheduled) return;
+    progressUpdateScheduled = true;
+    requestAnimationFrame(() => {
+        if (progressBar) progressBar.value = pendingPercent;
+        if (progressPercent) progressPercent.textContent = `${pendingPercent}%`;
+        progressUpdateScheduled = false;
+    });
+}
+
+function createWorker() {
+    const blob = new Blob([`
+self.onmessage = function(e) {
+    const { fileText, fileName, index, total, type } = e.data;
+    if (type === 'error') {
+        self.postMessage({ type: 'error', error: e.data.error });
+        return;
+    }
+    if (index === 0 && total) {
+        mergedArray = [];
+        currentIndex = 0;
+        totalFiles = total;
+    }
     try {
-        worker = new Worker("worker.js");
-        worker.onmessage = function (e) {
-            const { success, data, error } = e.data;
-            mergeButton.classList.remove("loading");
-            if (success) {
-                mergedData = data;
-                displayJSON(mergedData);
-                mergeButton.classList.add("success");
-                mergeButton.textContent = "Merged \u2713";
-                downloadButton.classList.remove("hidden");
-                downloadButton.classList.add("inline-flex");
+        const parsed = JSON.parse(fileText);
+        if (Array.isArray(parsed)) {
+            mergedArray.push(...parsed);
+        } else {
+            mergedArray.push(parsed);
+        }
+        currentIndex += 1;
+        const percent = Math.round((currentIndex / totalFiles) * 100);
+        self.postMessage({ type: 'progress', percent: percent });
+        if (currentIndex >= totalFiles) {
+            const fullString = JSON.stringify(mergedArray, null, 2);
+            let previewString;
+            if (Array.isArray(mergedArray) && mergedArray.length > 1000) {
+                previewString = JSON.stringify(mergedArray.slice(0, 1000), null, 2) +
+                    \`\\n\\n// ... truncated, showing 1000 of \${mergedArray.length} total items\`;
             } else {
-                mergeButton.textContent = "Merge Files";
-                alert(error);
+                previewString = fullString;
             }
-        };
-        worker.onerror = function () {
-            mergeButton.classList.remove("loading");
-            mergeButton.textContent = "Merge Files";
-            alert("Worker error occurred during merging.");
-            worker.terminate();
-            worker = null;
-        };
-    } catch {
-        worker = null;
+            self.postMessage({ type: 'final', data: { fullString: fullString, previewString: previewString, totalCount: mergedArray.length } });
+            mergedArray = []; currentIndex = 0; totalFiles = 0;
+        }
+    } catch (error) {
+        self.postMessage({ type: 'error', error: \`Error parsing file "\${fileName}": \${error.message}\` });
+        mergedArray = []; currentIndex = 0; totalFiles = 0;
     }
+};
+let mergedArray = []; let currentIndex = 0; let totalFiles = 0;
+`], { type: 'application/javascript' });
+    return new Worker(URL.createObjectURL(blob));
 }
 
-mergeButton.addEventListener("click", async () => {
-    const files = fileInput.files;
-    if (!files || files.length === 0) {
-        alert("Please select at least one JSON file!");
+mergeButton.addEventListener('click', async () => {
+    const files = Array.from(fileInput.files);
+    if (!files.length) {
+        alert('Please select at least one JSON file.');
         return;
     }
-
-    mergeButton.classList.remove("success");
-    mergeButton.classList.add("loading");
-    mergeButton.textContent = "Merging...";
-
-    if (!worker) initWorker();
-    if (!worker) {
-        mergeButton.classList.remove("loading");
-        mergeButton.textContent = "Merge Files";
-        alert("Web Workers are not supported in this browser.");
-        return;
+    for (const file of files) {
+        if (!file.name.endsWith('.json')) {
+            alert(`File ${file.name} is not a JSON file.`);
+            return;
+        }
     }
+
+    mergedDataString = "";
+    hasFullData = false;
+    mergedResult.textContent = 'Processing\u2026 (this may take a moment)';
+    downloadButton.classList.add('hidden');
+    downloadButton.classList.remove('inline-flex');
+    if (progressContainer) progressContainer.classList.remove('hidden');
+    updateProgress(0);
+    setUIState(true);
+
+    const worker = createWorker();
+
+    worker.onmessage = function (e) {
+        const { type, data, error, percent } = e.data;
+        if (type === 'progress') {
+            updateProgress(percent);
+            return;
+        }
+        if (type === 'error') {
+            alert(`An error occurred: ${error}`);
+            setUIState(false);
+            if (progressContainer) progressContainer.classList.add('hidden');
+            worker.terminate();
+            return;
+        }
+        if (type === 'final') {
+            mergedDataString = data.fullString;
+            const previewString = data.previewString;
+            hasFullData = true;
+            mergedResult.textContent = previewString;
+            downloadButton.classList.remove('hidden');
+            downloadButton.classList.add('inline-flex');
+            downloadButton.onclick = () => {
+                const blob = new Blob([mergedDataString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'merged_data.json';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 100);
+            };
+            setUIState(false);
+            if (progressContainer) progressContainer.classList.add('hidden');
+            worker.terminate();
+        }
+    };
+
+    worker.onerror = function () {
+        alert('Unexpected worker error.');
+        setUIState(false);
+        if (progressContainer) progressContainer.classList.add('hidden');
+        worker.terminate();
+    };
 
     try {
-        const fileList = Array.from(files);
-        const texts = await Promise.all(fileList.map((file) => {
-            if (!file.name.endsWith(".json")) {
-                throw new Error(`Invalid file: ${file.name}`);
-            }
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.onerror = () => reject(`Error reading ${file.name}`);
-                reader.readAsText(file);
-            });
-        }));
-        worker.postMessage(texts);
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const text = await file.text();
+            worker.postMessage({ fileText: text, fileName: file.name, index: i, total: files.length });
+        }
     } catch (err) {
-        mergeButton.classList.remove("loading");
-        mergeButton.textContent = "Merge Files";
-        alert(err.message || err);
+        alert(`File processing failed: ${err.message || err}`);
+        setUIState(false);
+        if (progressContainer) progressContainer.classList.add('hidden');
+        worker.terminate();
     }
 });
 
-function displayJSON(data) {
-    const codeBlock = document.getElementById("mergedResult");
-    codeBlock.textContent = JSON.stringify(data, null, 2);
-    codeBlock.removeAttribute("data-highlighted");
-    hljs.highlightElement(codeBlock);
-}
-
-downloadButton.addEventListener("click", () => {
-    if (!mergedData) return;
-    const blob = new Blob(
-        [JSON.stringify(mergedData, null, 2)],
-        { type: "application/json" }
-    );
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "merged_data.json";
-    link.click();
+let fullShown = false;
+const showMoreBtn = document.createElement('button');
+showMoreBtn.textContent = 'Show full result';
+showMoreBtn.className = 'mt-3 text-sm text-indigo-400 hover:text-indigo-300 hidden';
+showMoreBtn.addEventListener('click', () => {
+    if (!hasFullData) return;
+    if (fullShown) {
+        try {
+            const parsed = JSON.parse(mergedDataString);
+            const preview = Array.isArray(parsed)
+                ? JSON.stringify(parsed.slice(0, 1000), null, 2)
+                : mergedDataString.slice(0, 2000);
+            mergedResult.textContent = preview + (Array.isArray(parsed) && parsed.length > 1000 ? `\n\n// ... truncated, ${parsed.length} total items` : '');
+            showMoreBtn.textContent = 'Show full result';
+            fullShown = false;
+        } catch {
+            alert('Could not generate preview.');
+        }
+    } else {
+        mergedResult.textContent = mergedDataString;
+        showMoreBtn.textContent = 'Show preview';
+        fullShown = true;
+    }
 });
+mergedResult.parentNode.appendChild(showMoreBtn);
 
-initWorker();
+const observer = new MutationObserver(() => {
+    showMoreBtn.classList.toggle('hidden', !mergedResult.textContent.trim().length);
+});
+observer.observe(mergedResult, { childList: true, characterData: true, subtree: true });
